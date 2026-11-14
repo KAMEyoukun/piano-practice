@@ -254,23 +254,51 @@ function flashWrong(m){ wrongFlash = m; refreshKeys(); clearTimeout(wrongTimer);
 
 /* ---------- MIDI ---------- */
 let midiAccess = null;
-$("btnMidi").onclick = async ()=>{
-  if(!navigator.requestMIDIAccess){ alert("このブラウザはWeb MIDIに対応していません。Chromeで開いてください。"); return; }
+let midiScanTimer = null;
+function stopMidiScan(){ if(midiScanTimer){ clearInterval(midiScanTimer); midiScanTimer = null; } }
+function hookMidi(){
+  if(!midiAccess) return false;
+  let names = [];
+  midiAccess.inputs.forEach(inp=>{
+    names.push(inp.name || "MIDI装置");
+    inp.onmidimessage = onMidi;
+  });
+  const st = $("midiStatus");
+  if(names.length){
+    st.textContent = "MIDI: 接続済み（" + names.join("、") + "）";
+    st.classList.add("on");
+    stopMidiScan();
+    return true;
+  }
+  return false;
+}
+function startMidiScan(){
+  stopMidiScan();
+  const st = $("midiStatus");
+  st.textContent = "MIDI: 装置を探しています…（ピアノの電源とケーブルを確認）";
+  st.classList.remove("on");
+  let tries = 0;
+  midiScanTimer = setInterval(()=>{
+    tries++;
+    if(hookMidi()) return;
+    if(tries >= 40){
+      stopMidiScan();
+      st.textContent = "MIDI: 装置が見つかりません（USB接続を確認）";
+    }
+  }, 1500);
+}
+async function connectMidi(userInitiated){
+  if(!navigator.requestMIDIAccess){ if(userInitiated) alert("このブラウザはWeb MIDIに対応していません。Chromeで開いてください。"); return; }
   try{
-    midiAccess = await navigator.requestMIDIAccess();
-    const hook = ()=>{
-      let names=[];
-      midiAccess.inputs.forEach(inp=>{
-        names.push(inp.name||"MIDI装置");
-        inp.onmidimessage = onMidi;
-      });
-      const st = $("midiStatus");
-      if(names.length){ st.textContent = "MIDI: 接続済み（"+names.join("、")+"）"; st.classList.add("on"); }
-      else { st.textContent = "MIDI: 装置が見つかりません（USB接続を確認）"; st.classList.remove("on"); }
-    };
-    hook(); midiAccess.onstatechange = hook;
-  }catch(e){ alert("MIDI接続に失敗しました: "+e.message); }
-};
+    if(!midiAccess){
+      midiAccess = await navigator.requestMIDIAccess();
+      midiAccess.onstatechange = ()=>{ if(!hookMidi()) startMidiScan(); };
+    }
+    if(!hookMidi()) startMidiScan();
+  }catch(e){ if(userInitiated) alert("MIDI接続に失敗しました: " + e.message); }
+}
+$("btnMidi").onclick = ()=>connectMidi(true);
+connectMidi(false);
 function onMidi(ev){
   const [st, note, vel] = ev.data;
   const cmd = st & 0xf0;
