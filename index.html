@@ -138,7 +138,8 @@
   <section class="card mode" id="mode-melody">
     <div class="row" style="justify-content:flex-start;">
       <span class="small">プリセット:</span>
-      <button class="ghost" id="btnPresetTwinkle">⭐ きらきら星</button>
+      <select id="presetSel"></select>
+      <button class="ghost" id="btnPresetLoad">読み込む</button>
     </div>
     <div class="row" style="justify-content:flex-start;">
       <button class="gold" id="btnMelRec">● 録音モード</button>
@@ -537,15 +538,29 @@ $("btnMelRec").onclick = ()=>{ melMode="rec"; melIdx=0; melStart=null; $("melody
 $("btnMelPlay").onclick = ()=>{ melMode="play"; melIdx=0; melNg=0; melStart=null; $("melodyTime").textContent="―"; $("melodyFb").textContent="練習モード: 青い音から順に弾いてください"; $("melodyFb").className="feedback"; melRender(); if(melSeq.length) scrollKbTo(melSeq[0]); };
 $("btnMelUndo").onclick = ()=>{ melSeq.pop(); melRender(); };
 $("btnMelClear").onclick = ()=>{ if(confirm("メロディを全部消しますか？")){ melSeq=[]; melIdx=0; melRender(); } };
-const PRESETS = {
-  twinkle: { name: "きらきら星", notes: [60,60,67,67,69,69,67, 65,65,64,64,62,62,60, 67,67,65,65,64,64,62, 67,67,65,65,64,64,62, 60,60,67,67,69,69,67, 65,65,64,64,62,62,60] }
-};
-$("btnPresetTwinkle").onclick = ()=>{
-  if(melSeq.length && !confirm("今のメロディをプリセット「きらきら星」で置き換えますか？")) return;
-  melSeq = PRESETS.twinkle.notes.slice();
+const PRESETS = [
+  { id: "twinkle", name: "⭐ きらきら星", notes: [60,60,67,67,69,69,67, 65,65,64,64,62,62,60, 67,67,65,65,64,64,62, 67,67,65,65,64,64,62, 60,60,67,67,69,69,67, 65,65,64,64,62,62,60] },
+  { id: "mary", name: "🐑 メリーさんのひつじ", notes: [64,62,60,62,64,64,64, 62,62,62,64,67,67, 64,62,60,62,64,64,64, 62,62,64,62,60] },
+  { id: "kaeru", name: "🐸 かえるの合唱", notes: [60,62,64,65,64,62,60, 64,65,67,69,67,65,64, 60,60,60,60, 60,60,62,62,64,64,65,65, 64,62,60] },
+  { id: "chocho", name: "🦋 ちょうちょう", notes: [67,64,64, 65,62,62, 60,62,64,65,62, 67,64,64, 65,62,62, 60,64,67,67,64] },
+  { id: "london", name: "🌉 ロンドン橋", notes: [67,69,67,65,64,65,67, 62,64,65,64,65,67, 67,69,67,65,64,65,67, 62,67,64,60] },
+  { id: "saints", name: "🎺 聖者の行進（出だし）", notes: [60,64,65,67, 60,64,65,67, 60,64,65,67, 64,60,64,62] },
+  { id: "jingle", name: "🔔 ジングルベル", notes: [64,64,64, 64,64,64, 64,67,60,62,64, 65,65,65,65,65,64,64,64,64, 64,62,62,64,62,67, 64,64,64, 64,64,64, 64,67,60,62,64, 65,65,65,65,65,64,64,64,64, 67,67,65,62,60] }
+];
+const presetSel = $("presetSel");
+PRESETS.forEach((p, i)=>{
+  const o = document.createElement("option");
+  o.value = i; o.textContent = p.name;
+  presetSel.appendChild(o);
+});
+$("btnPresetLoad").onclick = ()=>{
+  const p = PRESETS[Number(presetSel.value)];
+  if(!p) return;
+  if(melSeq.length && !confirm("今のメロディをプリセット「" + p.name + "」で置き換えますか？")) return;
+  melSeq = p.notes.slice();
   melMode = "play"; melIdx = 0; melNg = 0; melStart = null;
   $("melodyTime").textContent = "―";
-  $("melodyFb").textContent = "プリセット「きらきら星」を読み込みました。青い音から順に弾いてください";
+  $("melodyFb").textContent = "プリセット「" + p.name + "」を読み込みました。青い音から順に弾いてください";
   $("melodyFb").className = "feedback";
   melRender();
   scrollKbTo(melSeq[0]);
