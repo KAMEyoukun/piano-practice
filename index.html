@@ -584,6 +584,9 @@ function stopDemo(finished){
   if(finished){
     $("melodyFb").textContent = "お手本おわり。次は練習モードで弾いてみて";
     $("melodyFb").className = "feedback ok";
+  } else if(currentMode==="melody"){
+    $("melodyFb").textContent = "";
+    $("melodyFb").className = "feedback";
   }
 }
 function demoStep(){
