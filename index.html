@@ -144,6 +144,7 @@
     <div class="row" style="justify-content:flex-start;">
       <button class="gold" id="btnMelRec">● 録音モード</button>
       <button class="ghost" id="btnMelPlay">練習モード</button>
+      <button class="ghost" id="btnMelDemo">▶ お手本を聴く</button>
       <button class="ghost" id="btnMelUndo">1つ戻る</button>
       <button class="ghost" id="btnMelClear">全部消す</button>
     </div>
@@ -399,10 +400,12 @@ document.querySelectorAll(".tab").forEach(t=>{
     t.classList.add("active");
     currentMode = t.dataset.mode;
     $("mode-"+currentMode).classList.add("active");
+    if(demoIdx>=0) stopDemo(false);
     updateHints();
   };
 });
 function handleNoteOn(m, source){
+  if(demoIdx>=0) stopDemo(false);
   activeNotes.add(m); refreshKeys();
   $("freeNow").textContent = [...activeNotes].sort((a,b)=>a-b).map(noteName).join(" ");
   if(source!=="screen") $("freeLast").textContent = dispMain(m)+"（"+dispSub(m)+"）";
@@ -510,7 +513,8 @@ function melRender(){
   else{
     el.innerHTML = melSeq.map((n,i)=>{
       let cls = "";
-      if(melMode==="play"){ if(i<melIdx) cls="done"; else if(i===melIdx) cls="now"; }
+      const effIdx = demoIdx>=0 ? demoIdx : melIdx;
+      if(melMode==="play" || demoIdx>=0){ if(i<effIdx) cls="done"; else if(i===effIdx) cls="now"; }
       return '<span class="'+cls+'">'+noteName(n)+"</span>";
     }).join(" ");
   }
@@ -534,8 +538,8 @@ function melodyNote(m){
     } else { melNg++; $("melodyNg").textContent=melNg; flashWrong(m); }
   }
 }
-$("btnMelRec").onclick = ()=>{ melMode="rec"; melIdx=0; melStart=null; $("melodyFb").textContent="録音モード: 弾いた音が記録されます"; $("melodyFb").className="feedback"; melRender(); };
-$("btnMelPlay").onclick = ()=>{ melMode="play"; melIdx=0; melNg=0; melStart=null; $("melodyTime").textContent="―"; $("melodyFb").textContent="練習モード: 青い音から順に弾いてください"; $("melodyFb").className="feedback"; melRender(); if(melSeq.length) scrollKbTo(melSeq[0]); };
+$("btnMelRec").onclick = ()=>{ stopDemo(false); melMode="rec"; melIdx=0; melStart=null; $("melodyFb").textContent="録音モード: 弾いた音が記録されます"; $("melodyFb").className="feedback"; melRender(); };
+$("btnMelPlay").onclick = ()=>{ stopDemo(false); melMode="play"; melIdx=0; melNg=0; melStart=null; $("melodyTime").textContent="―"; $("melodyFb").textContent="練習モード: 青い音から順に弾いてください"; $("melodyFb").className="feedback"; melRender(); if(melSeq.length) scrollKbTo(melSeq[0]); };
 $("btnMelUndo").onclick = ()=>{ melSeq.pop(); melRender(); };
 $("btnMelClear").onclick = ()=>{ if(confirm("メロディを全部消しますか？")){ melSeq=[]; melIdx=0; melRender(); } };
 const PRESETS = [
@@ -557,6 +561,7 @@ $("btnPresetLoad").onclick = ()=>{
   const p = PRESETS[Number(presetSel.value)];
   if(!p) return;
   if(melSeq.length && !confirm("今のメロディをプリセット「" + p.name + "」で置き換えますか？")) return;
+  stopDemo(false);
   melSeq = p.notes.slice();
   melMode = "play"; melIdx = 0; melNg = 0; melStart = null;
   $("melodyTime").textContent = "―";
@@ -564,6 +569,50 @@ $("btnPresetLoad").onclick = ()=>{
   $("melodyFb").className = "feedback";
   melRender();
   scrollKbTo(melSeq[0]);
+};
+
+/* ---------- melody demo (お手本) ---------- */
+let demoIdx = -1, demoTimer = null, demoNote = null;
+function stopDemo(finished){
+  if(demoTimer){ clearTimeout(demoTimer); demoTimer = null; }
+  if(demoNote!=null){ activeNotes.delete(demoNote); demoNote = null; }
+  demoIdx = -1;
+  const b = $("btnMelDemo");
+  if(b) b.textContent = "▶ お手本を聴く";
+  refreshKeys();
+  if(currentMode==="melody") melRender();
+  if(finished){
+    $("melodyFb").textContent = "お手本おわり。次は練習モードで弾いてみて";
+    $("melodyFb").className = "feedback ok";
+  }
+}
+function demoStep(){
+  if(demoIdx >= melSeq.length){ stopDemo(true); return; }
+  const m = melSeq[demoIdx];
+  demoNote = m;
+  melRender();
+  activeNotes.add(m); refreshKeys();
+  playTone(m, 0.45);
+  scrollKbTo(m);
+  demoIdx++;
+  demoTimer = setTimeout(()=>{
+    if(demoNote!=null){ activeNotes.delete(demoNote); demoNote = null; refreshKeys(); }
+    demoStep();
+  }, 500);
+}
+$("btnMelDemo").onclick = ()=>{
+  if(demoIdx >= 0){ stopDemo(false); return; }
+  if(!melSeq.length){
+    $("melodyFb").textContent = "まずプリセットを読み込むか、録音モードでメロディを入れてください";
+    $("melodyFb").className = "feedback";
+    return;
+  }
+  ensureAudio();
+  demoIdx = 0;
+  $("btnMelDemo").textContent = "⏹ 止める";
+  $("melodyFb").textContent = "お手本を再生中…（鍵盤を押すと止まります）";
+  $("melodyFb").className = "feedback";
+  demoStep();
 };
 
 /* ---------- init ---------- */
