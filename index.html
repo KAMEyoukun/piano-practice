@@ -298,7 +298,6 @@ async function connectMidi(userInitiated){
   }catch(e){ if(userInitiated) alert("MIDI接続に失敗しました: " + e.message); }
 }
 $("btnMidi").onclick = ()=>connectMidi(true);
-connectMidi(false);
 function onMidi(ev){
   const [st, note, vel] = ev.data;
   const cmd = st & 0xf0;
