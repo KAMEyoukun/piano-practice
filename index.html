@@ -100,6 +100,12 @@
         </select>
       </label>
       <label><input type="checkbox" id="singleHintKey" checked> 鍵盤にヒントを表示</label>
+      <label>表記
+        <select id="nameStyle">
+          <option value="en" selected>CDEメイン</option>
+          <option value="solfa">ドレミメイン</option>
+        </select>
+      </label>
       <button class="ghost" id="btnHear">音を聴く</button>
       <button class="ghost" id="btnSkip">スキップ</button>
     </div>
@@ -181,6 +187,9 @@ const PC2SOLFA = {0:"ド",1:"ド#",2:"レ",3:"レ#",4:"ミ",5:"ファ",6:"ファ
 const isBlack = pc => [1,3,6,8,10].includes(pc);
 const noteName = m => PC2SOLFA[m%12] + (Math.floor(m/12)-1);
 const noteEn = m => EN[m%12] + (Math.floor(m/12)-1);
+let nameStyle = localStorage.getItem("pianoPractice.nameStyle") || "en";
+const dispMain = m => nameStyle==="en" ? noteEn(m) : noteName(m);
+const dispSub = m => nameStyle==="en" ? noteName(m) : noteEn(m);
 const $ = id => document.getElementById(id);
 
 /* ---------- audio (monitor / reference) ---------- */
@@ -322,7 +331,7 @@ function micTick(){
   const exact = 69 + 12*Math.log2(f/440) - calibOffset/100;
   const midi = Math.round(exact);
   if(Math.abs(exact-midi) > 0.45){ $("micNote").textContent="（音程が中間です）"; return; }
-  $("micNote").textContent = noteName(midi)+"（"+noteEn(midi)+"）";
+  $("micNote").textContent = dispMain(midi)+"（"+dispSub(midi)+"）";
   const now = performance.now();
   if(midi!==lastMicNote || now-lastMicTime>900){
     if(midi!==lastMicNote){ handleNoteOn(midi,"mic"); setTimeout(()=>handleNoteOff(midi,"mic"), 350); }
@@ -364,7 +373,7 @@ document.querySelectorAll(".tab").forEach(t=>{
 function handleNoteOn(m, source){
   activeNotes.add(m); refreshKeys();
   $("freeNow").textContent = [...activeNotes].sort((a,b)=>a-b).map(noteName).join(" ");
-  if(source!=="screen") $("freeLast").textContent = noteName(m)+"（"+noteEn(m)+"）";
+  if(source!=="screen") $("freeLast").textContent = dispMain(m)+"（"+dispSub(m)+"）";
   if(currentMode==="single") singleJudge(m);
   else if(currentMode==="chord") chordJudge();
   else if(currentMode==="melody") melodyNote(m);
@@ -380,8 +389,8 @@ function singleNext(){
   const [lo,hi] = $("singleRange").value.split(",").map(Number);
   let n; do{ n = lo + Math.floor(Math.random()*(hi-lo+1)); }while(n===sTarget);
   sTarget = n; sLock=false;
-  $("singleName").textContent = noteName(n);
-  $("singleEn").textContent = noteEn(n);
+  $("singleName").textContent = dispMain(n);
+  $("singleEn").textContent = dispSub(n);
   $("singleFb").textContent=""; $("singleFb").className="feedback";
   updateHints(); scrollKbTo(n);
 }
@@ -407,6 +416,12 @@ function singleJudge(m){
   $("singleOk").textContent=sOk; $("singleNg").textContent=sNg;
   $("singleStreak").textContent=sStreak; $("singleBest").textContent=sBest;
 }
+$("nameStyle").value = nameStyle;
+$("nameStyle").onchange = ()=>{
+  nameStyle = $("nameStyle").value;
+  localStorage.setItem("pianoPractice.nameStyle", nameStyle);
+  if(sTarget!=null){ $("singleName").textContent = dispMain(sTarget); $("singleEn").textContent = dispSub(sTarget); }
+};
 $("btnSkip").onclick = singleNext;
 $("singleRange").onchange = singleNext;
 $("singleHintKey").onchange = updateHints;
